@@ -70,7 +70,6 @@ const addUser = function(user) {
   return pool
     .query(addUserQuery, userInput)
     .then(res => {
-      console.log(res.rows);
       if (res.rows) {
         return res.rows;
       } else {
@@ -122,14 +121,13 @@ const getAllProperties = function(options, limit = 20) {
   let queryString = `
     SELECT properties.*, avg(property_reviews.rating) as average_rating
     FROM properties
-    JOIN property_reviews ON properties.id = property_id
+    LEFT JOIN property_reviews ON properties.id = property_id
     `;
 
   // 3
   if (options.city) {
     queryParams.push(`%${options.city.charAt(0).toUpperCase() + options.city.slice(1)}%`);
     queryString += `${queryParams.length === 1 ? "WHERE" : "AND"} city LIKE $${queryParams.length} `;
-    console.log("first query string", queryString);
   }
 
   if (options.owner_id) {
@@ -167,7 +165,7 @@ const getAllProperties = function(options, limit = 20) {
      LIMIT $${queryParams.length};
      `;
   }
-  
+
   // 5
   console.log(queryString, queryParams);
 
@@ -182,9 +180,30 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function(property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  console.log("Adding");
+  const queryString = `
+  INSERT INTO properties (
+    title, description, thumbnail_photo_url, cover_photo_url, cost_per_night, street, city, province, post_code, country, parking_spaces, number_of_bathrooms, number_of_bedrooms, owner_id)
+  VALUES(
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+  RETURNING *;
+`;
+  let values = [
+    property.title,
+    property.description,
+    property.thumbnail_photo_url,
+    property.cover_photo_url,
+    property.cost_per_night,
+    property.street,
+    property.city,
+    property.province,
+    property.post_code,
+    property.country,
+    property.parking_spaces,
+    property.number_of_bathrooms,
+    property.number_of_bedrooms,
+    property.owner_id
+  ];
+  return pool.query(queryString, values).then(res => res.rows[0]);
 };
 exports.addProperty = addProperty;
